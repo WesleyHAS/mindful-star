@@ -1,6 +1,7 @@
 require("dotenv").config();
 const puppeteer = require("puppeteer");
 const fs = require("fs");
+const cookiesPath = "cookies.txt";
 
 const authenticate = async () => {
   const outputDirectory = "output";
@@ -14,6 +15,19 @@ const authenticate = async () => {
     args: ["--no-sandbox", "--disable-gpu", "--disable-setuid-sandbox"],
   });
   const page = await browser.newPage();
+  // If the cookies file exists, read the cookies.
+  const previousSession = fs.existsSync(cookiesPath);
+  if (previousSession) {
+    const content = fs.readFileSync(cookiesPath);
+    const cookiesArr = JSON.parse(content);
+    if (cookiesArr.length !== 0) {
+      for (let cookie of cookiesArr) {
+        await page.setCookie(cookie);
+      }
+      console.log("Session has been loaded in the browser");
+    }
+  }
+
   const username = process.env.USER;
   const password = process.env.PW;
 
@@ -27,6 +41,11 @@ const authenticate = async () => {
   await page.waitForNavigation({ waitUntil: "domcontentloaded" });
 
   await page.screenshot({ path: `${outputDirectory}/screenshot.png` });
+
+  // Write Cookies
+  const cookiesObject = await page.cookies();
+  fs.writeFileSync(cookiesPath, JSON.stringify(cookiesObject));
+  console.log("Session has been saved to " + cookiesPath);
 
   await page.close();
   await browser.close();
